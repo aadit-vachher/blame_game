@@ -14,6 +14,8 @@ router.post(
   [
     param('blameId').isUUID(),
     body('content').trim().notEmpty().isLength({ max: 5000 }).withMessage('Message content is required (max 5000 chars)'),
+    body('mentionedTeamIds').optional().isArray().withMessage('mentionedTeamIds must be an array'),
+    body('mentionedTeamIds.*').isUUID().withMessage('Invalid team ID format'),
   ],
   validate,
   controller.createMessage

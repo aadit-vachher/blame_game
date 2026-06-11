@@ -24,7 +24,7 @@ class DiscussionService {
     return { messages, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async createMessage(blameId, content, user) {
+  async createMessage(blameId, content, user, mentionedTeamIds = []) {
     const blame = await prisma.blame.findUnique({
       where: { id: blameId },
       select: { id: true, title: true, creatorId: true, creatorTeamId: true, blamedTeamId: true, status: true },
@@ -60,22 +60,15 @@ class DiscussionService {
       });
     }
 
-    // Check for @mentions in content
-    const mentionRegex = /@(\w+)/g;
-    const mentions = content.match(mentionRegex);
-    if (mentions) {
-      const mentionedNames = mentions.map((m) => m.slice(1));
-      const mentionedUsers = await prisma.user.findMany({
-        where: { name: { in: mentionedNames, mode: 'insensitive' }, status: 'ACTIVE' },
-        select: { id: true },
-      });
-      if (mentionedUsers.length > 0) {
-        await notify({
+    // Notify mentioned teams
+    if (mentionedTeamIds && mentionedTeamIds.length > 0) {
+      for (const teamId of mentionedTeamIds) {
+        await notifyTeam({
+          teamId,
           type: 'MENTIONED',
-          title: 'You were mentioned',
-          message: `${user.name} mentioned you in "${blame.title}"`,
+          title: 'Your team was mentioned',
+          message: `${user.name} mentioned your team in "${blame.title}"`,
           blameId,
-          userIds: mentionedUsers.map((u) => u.id),
           excludeUserId: user.id,
         });
       }

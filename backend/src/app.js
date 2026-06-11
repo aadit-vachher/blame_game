@@ -17,7 +17,7 @@ const categoryRoutes = require('./modules/categories/routes');
 const blameRoutes = require('./modules/blames/routes');
 const discussionRoutes = require('./modules/discussions/routes');
 const dependencyRoutes = require('./modules/dependencies/routes');
-const attachmentRoutes = require('./modules/attachments/routes');
+
 const notificationRoutes = require('./modules/notifications/routes');
 const analyticsRoutes = require('./modules/analytics/routes');
 const auditRoutes = require('./modules/audit/routes');
@@ -62,7 +62,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/blames', blameRoutes);
 app.use('/api/blames', discussionRoutes);
 app.use('/api/dependencies', dependencyRoutes);
-app.use('/api/attachments', attachmentRoutes);
+
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/audit-logs', auditRoutes);

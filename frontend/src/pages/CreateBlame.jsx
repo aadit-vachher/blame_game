@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createBlame } from '../api/blames';
 import { listTeams } from '../api/teams';
 import { listCategories } from '../api/categories';
-import { uploadAttachment } from '../api/attachments';
-import { AlertCircle, ArrowLeft, Send, UploadCloud, File, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useAuth from '../hooks/useAuth';
 
@@ -25,9 +24,7 @@ const CreateBlame = () => {
   const [employeesAffected, setEmployeesAffected] = useState('');
   const [businessImpactNotes, setBusinessImpactNotes] = useState('');
   
-  // File State
-  const [selectedFile, setSelectedFile] = useState(null);
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -56,20 +53,6 @@ const CreateBlame = () => {
     }
   }, [user]);
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('File size exceeds 10MB limit');
-        return;
-      }
-      setSelectedFile(file);
-    }
-  };
-
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -100,15 +83,6 @@ const CreateBlame = () => {
       if (blameRes.success && blameRes.data) {
         const blameId = blameRes.data.id;
         
-        // If file is selected, upload it
-        if (selectedFile) {
-          try {
-            await uploadAttachment(selectedFile, { blameId });
-          } catch (fileErr) {
-            console.error('File upload failed:', fileErr);
-            toast.error('Blame raised, but attachment upload failed.');
-          }
-        }
 
         toast.success('Blame raised successfully');
         navigate(`/blames/${blameId}`);
@@ -313,66 +287,6 @@ const CreateBlame = () => {
             </div>
           </div>
 
-          {/* File Upload Area */}
-          <div className="form-group">
-            <label className="form-label">Supporting Evidence / Attachment</label>
-            <div style={{
-              border: '2px dashed var(--color-border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: 'var(--space-6)',
-              textAlign: 'center',
-              cursor: 'pointer',
-              background: 'var(--color-bg-secondary)',
-              position: 'relative',
-            }}>
-              <input
-                type="file"
-                onChange={handleFileChange}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  opacity: 0,
-                  cursor: 'pointer',
-                }}
-              />
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <UploadCloud size={32} style={{ color: 'var(--color-text-muted)' }} />
-                <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
-                  Click to upload a file or drag and drop
-                </span>
-                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-                  PNG, JPG, PDF, CSV, XLSX, DOCX (Max 10MB)
-                </span>
-              </div>
-            </div>
-
-            {selectedFile && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: 'var(--space-2) var(--space-4)',
-                background: 'var(--color-bg-tertiary)',
-                borderRadius: 'var(--radius-md)',
-                marginTop: 'var(--space-2)',
-                border: '1px solid var(--color-border)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: 0 }}>
-                  <File size={16} style={{ color: 'var(--color-primary)' }} />
-                  <span style={{ fontSize: 'var(--font-size-sm)' }} className="truncate">
-                    {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleRemoveFile}
-                  style={{ color: 'var(--color-blocked)', display: 'flex', alignItems: 'center' }}
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            )}
-          </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', borderTop: '1px solid var(--color-border-light)', paddingTop: 'var(--space-4)' }}>
             <button

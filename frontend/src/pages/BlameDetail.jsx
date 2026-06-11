@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getBlameById, changeBlameStatus, updateBlame } from '../api/blames';
 import { listTeams } from '../api/teams';
 import { listCategories } from '../api/categories';
 import { listDiscussionMessages, createDiscussionMessage } from '../api/discussions';
 import { getDependencyChain, createDependency, removeDependency } from '../api/dependencies';
-import { uploadAttachment, deleteAttachment, getAttachmentDownloadUrl } from '../api/attachments';
 import { 
-  ArrowLeft, Calendar, User, Clock, Users, Tag, AlertTriangle, FileText, 
-  MessageSquare, Paperclip, Send, Plus, Trash2, ShieldAlert, CheckCircle2,
-  FolderLock, RefreshCw, X, Link as LinkIcon, Download, Loader2
+  ArrowLeft, Calendar, User, Clock, Users, Tag, AlertTriangle, 
+  MessageSquare, Send, Plus, Trash2, ShieldAlert,
+  FolderLock, X, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useAuth from '../hooks/useAuth';
@@ -33,8 +32,14 @@ const BlameDetail = () => {
 
   // Form States
   const [commentText, setCommentText] = useState('');
-  const [commentFile, setCommentFile] = useState(null);
   const [submittingComment, setSubmittingComment] = useState(false);
+
+  // Mention States
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionCursorIndex, setMentionCursorIndex] = useState(-1);
+  const [mentionedTeams, setMentionedTeams] = useState([]); // Array of { id, name }
+  const textareaRef = useRef(null);
 
   // Edit Blame Form States
   const [editTitle, setEditTitle] = useState('');
@@ -54,10 +59,6 @@ const BlameDetail = () => {
   const [depReason, setDepReason] = useState('');
   const [depNotes, setDepNotes] = useState('');
   const [submittingDep, setSubmittingDep] = useState(false);
-
-  // Direct Attachment Form State
-  const [directFile, setDirectFile] = useState(null);
-  const [uploadingDirectFile, setUploadingDirectFile] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -152,34 +153,72 @@ const BlameDetail = () => {
     }
   };
 
+  const handleCommentChange = (e) => {
+    const val = e.target.value;
+    setCommentText(val);
+
+    const cursorPosition = e.target.selectionStart;
+    const textBeforeCursor = val.slice(0, cursorPosition);
+    
+    // Check if the last word starts with @
+    const words = textBeforeCursor.split(/\s/);
+    const lastWord = words[words.length - 1];
+
+    if (lastWord.startsWith('@')) {
+      setShowMentionDropdown(true);
+      setMentionQuery(lastWord.slice(1).toLowerCase());
+      setMentionCursorIndex(cursorPosition - lastWord.length);
+    } else {
+      setShowMentionDropdown(false);
+    }
+  };
+
+  const handleMentionSelect = (team) => {
+    const textBeforeMention = commentText.slice(0, mentionCursorIndex);
+    const textAfterCursor = commentText.slice(textareaRef.current.selectionStart);
+    
+    // Construct new text with @TeamName
+    const newText = `${textBeforeMention}@${team.name} ${textAfterCursor}`;
+    setCommentText(newText);
+    
+    // Add to mentionedTeams list if not already there
+    if (!mentionedTeams.find(t => t.id === team.id)) {
+      setMentionedTeams([...mentionedTeams, team]);
+    }
+    
+    setShowMentionDropdown(false);
+    
+    // Refocus textarea and put cursor after the mention
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const newCursorPos = mentionCursorIndex + team.name.length + 2; // +1 for @ and +1 for space
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
+  };
+
   const handlePostComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
 
     setSubmittingComment(true);
     try {
-      const msgRes = await createDiscussionMessage(id, { content: commentText });
-      if (msgRes.success && msgRes.data) {
-        const messageId = msgRes.data.id;
+      const payload = { 
+        content: commentText,
+        mentionedTeamIds: mentionedTeams.map(t => t.id)
+      };
 
-        if (commentFile) {
-          try {
-            await uploadAttachment(commentFile, { messageId });
-          } catch (fileErr) {
-            console.error('Comment file upload failed:', fileErr);
-            toast.error('Comment posted, but file upload failed');
-          }
-        }
-
+      const msgRes = await createDiscussionMessage(id, payload);
+      if (msgRes.success) {
         setCommentText('');
-        setCommentFile(null);
+        setMentionedTeams([]);
         toast.success('Comment posted');
         
         // Refresh messages
         const messagesRes = await listDiscussionMessages(id);
         if (messagesRes.success) setMessages(messagesRes.data.messages);
         
-        // Auto status check - if comment was posted on OPEN blame, it auto transitions to IN_DISCUSSION
         if (blame.status === 'OPEN') {
           fetchData();
         }
@@ -216,7 +255,6 @@ const BlameDetail = () => {
         setDepReason('');
         setDepNotes('');
         
-        // Refresh chain and details
         const chainRes = await getDependencyChain(id);
         if (chainRes.success) setChain(chainRes.data);
       }
@@ -231,48 +269,13 @@ const BlameDetail = () => {
   const handleRemoveDep = async (depId) => {
     if (!window.confirm('Are you sure you want to remove this dependency?')) return;
     try {
-      const response = await removeDependency(depId);
+      await removeDependency(depId);
       toast.success('Dependency removed');
-      // Refresh chain
       const chainRes = await getDependencyChain(id);
       if (chainRes.success) setChain(chainRes.data);
     } catch (err) {
       console.error('Failed to remove dependency:', err);
       toast.error('Failed to remove dependency');
-    }
-  };
-
-  const handleUploadDirectFile = async (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('File size exceeds 10MB limit');
-        return;
-      }
-      
-      setUploadingDirectFile(true);
-      try {
-        await uploadAttachment(file, { blameId: id });
-        toast.success('Attachment uploaded successfully');
-        fetchData();
-      } catch (err) {
-        console.error('Failed to upload direct attachment:', err);
-        toast.error('Failed to upload attachment');
-      } finally {
-        setUploadingDirectFile(false);
-      }
-    }
-  };
-
-  const handleDeleteDirectFile = async (fileId) => {
-    if (!window.confirm('Are you sure you want to delete this attachment?')) return;
-    try {
-      await deleteAttachment(fileId);
-      toast.success('Attachment deleted');
-      fetchData();
-    } catch (err) {
-      console.error('Failed to delete attachment:', err);
-      toast.error('Failed to delete attachment');
     }
   };
 
@@ -296,8 +299,9 @@ const BlameDetail = () => {
 
   const isCreator = blame.creatorId === user?.id;
   const canEdit = isCreator || isAdmin;
+  
+  const filteredTeams = teams.filter(t => t.name.toLowerCase().includes(mentionQuery));
 
-  // Render Status Badge helper
   const getStatusBadge = (status) => {
     switch (status) {
       case 'OPEN': return <span className="badge badge-open">OPEN</span>;
@@ -380,13 +384,10 @@ const BlameDetail = () => {
         </div>
       </div>
 
-      {/* Main Layout Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }}>
         
-        {/* Left Side: Info / Form & Tabs */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           {editMode ? (
-            /* EDIT FORM */
             <div className="card">
               <form onSubmit={handleUpdateBlame} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 <h3 className="card-title">Edit Blame Details</h3>
@@ -487,7 +488,6 @@ const BlameDetail = () => {
               </form>
             </div>
           ) : (
-            /* VIEW CONTENT DETAILS */
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               <div>
                 <h4 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
@@ -505,7 +505,6 @@ const BlameDetail = () => {
             </div>
           )}
 
-          {/* TAB SYSTEM */}
           <div>
             <div className="tabs">
               <button 
@@ -520,19 +519,11 @@ const BlameDetail = () => {
               >
                 Dependency Chain ({chain.dependencies.length})
               </button>
-              <button 
-                className={`tab ${activeTab === 'attachments' ? 'active' : ''}`}
-                onClick={() => setActiveTab('attachments')}
-              >
-                Attachments ({blame.attachments?.length || 0})
-              </button>
             </div>
 
-            {/* TAB CONTENT: DISCUSSION */}
             {activeTab === 'discussion' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 
-                {/* Messages List */}
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', maxHeight: '450px', overflowY: 'auto' }}>
                   {messages.length === 0 ? (
                     <div className="empty-state" style={{ padding: 'var(--space-6)' }}>
@@ -554,34 +545,6 @@ const BlameDetail = () => {
                               <span className="message-time">• {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}</span>
                             </div>
                             <div className="message-content">{msg.content}</div>
-
-                            {/* Message Attachments */}
-                            {msg.attachments && msg.attachments.length > 0 && (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-                                {msg.attachments.map(att => (
-                                  <a
-                                    key={att.id}
-                                    href={getAttachmentDownloadUrl(att.id)}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 'var(--space-1)',
-                                      background: 'var(--color-bg-tertiary)',
-                                      border: '1px solid var(--color-border)',
-                                      borderRadius: 'var(--radius-sm)',
-                                      padding: '2px 8px',
-                                      fontSize: 'var(--font-size-xs)',
-                                      color: 'var(--color-primary)',
-                                    }}
-                                  >
-                                    <Paperclip size={12} />
-                                    <span className="truncate" style={{ maxWidth: '180px' }}>{att.originalName}</span>
-                                  </a>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         </div>
                       ))}
@@ -589,41 +552,76 @@ const BlameDetail = () => {
                   )}
                 </div>
 
-                {/* Comment Form */}
                 {blame.status !== 'CLOSED' && (
                   <form onSubmit={handlePostComment} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    <div className="form-group">
+                    <div className="form-group" style={{ position: 'relative' }}>
                       <textarea
-                        placeholder="Write a message... Use @Name to notify specific team members."
+                        ref={textareaRef}
+                        placeholder="Write a message... Use @TeamName to notify specific teams."
                         value={commentText}
-                        onChange={(e) => setCommentText(e.target.value)}
+                        onChange={handleCommentChange}
                         className="form-textarea"
                         style={{ minHeight: '80px' }}
                         required
                       />
+                      
+                      {/* Mention Dropdown */}
+                      {showMentionDropdown && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '100%',
+                          left: 0,
+                          backgroundColor: 'var(--color-bg)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-md)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          zIndex: 10,
+                          maxHeight: '200px',
+                          overflowY: 'auto',
+                          width: '250px',
+                          marginBottom: '4px'
+                        }}>
+                          {filteredTeams.length > 0 ? (
+                            filteredTeams.map(team => (
+                              <div
+                                key={team.id}
+                                onClick={() => handleMentionSelect(team)}
+                                style={{
+                                  padding: '8px 12px',
+                                  cursor: 'pointer',
+                                  borderBottom: '1px solid var(--color-border-light)',
+                                  fontSize: 'var(--font-size-sm)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 'var(--space-2)'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-bg-secondary)'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                              >
+                                <span style={{ fontWeight: 600 }}>{team.name}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <div style={{ padding: '8px 12px', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+                              No teams found
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex items-center justify-between" style={{ flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                        <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
-                          <Paperclip size={14} />
-                          {commentFile ? 'Change File' : 'Attach File'}
-                          <input
-                            type="file"
-                            onChange={(e) => setCommentFile(e.target.files?.[0] || null)}
-                            style={{ display: 'none' }}
-                          />
-                        </label>
-                        {commentFile && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                            <span className="truncate" style={{ maxWidth: '120px' }}>{commentFile.name}</span>
-                            <button type="button" onClick={() => setCommentFile(null)} style={{ color: 'var(--color-blocked)', display: 'flex' }}>
-                              <X size={12} />
-                            </button>
-                          </div>
-                        )}
+                    {mentionedTeams.length > 0 && (
+                      <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', alignSelf: 'center' }}>Notifying:</span>
+                        {mentionedTeams.map(t => (
+                          <span key={t.id} style={{ fontSize: 'var(--font-size-xs)', backgroundColor: 'var(--color-primary)', color: 'white', padding: '2px 8px', borderRadius: '12px' }}>
+                            {t.name}
+                          </span>
+                        ))}
                       </div>
+                    )}
 
+                    <div className="flex items-center justify-end" style={{ flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                       <button type="submit" className="btn btn-primary btn-sm" disabled={submittingComment}>
                         {submittingComment ? 'Posting...' : (
                           <>
@@ -638,10 +636,8 @@ const BlameDetail = () => {
               </div>
             )}
 
-            {/* TAB CONTENT: DEPENDENCY CHAIN */}
             {activeTab === 'chain' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                {/* Visual flowchart chain */}
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                   <div className="flex items-center justify-between">
                     <h3 className="card-title">Recursive Dependency Flow</h3>
@@ -698,7 +694,6 @@ const BlameDetail = () => {
                   )}
                 </div>
 
-                {/* List of active links for management */}
                 {chain.dependencies.length > 0 && (
                   <div className="card">
                     <h3 className="card-title" style={{ marginBottom: 'var(--space-3)' }}>Linkage Manager</h3>
@@ -742,114 +737,10 @@ const BlameDetail = () => {
                 )}
               </div>
             )}
-
-            {/* TAB CONTENT: ATTACHMENTS */}
-            {activeTab === 'attachments' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                {/* Upload zone */}
-                {blame.status !== 'CLOSED' && (
-                  <div className="card">
-                    <h3 className="card-title" style={{ marginBottom: 'var(--space-2)' }}>Upload Direct Evidence</h3>
-                    <div style={{
-                      border: '2px dashed var(--color-border)',
-                      borderRadius: 'var(--radius-lg)',
-                      padding: 'var(--space-4)',
-                      textAlign: 'center',
-                      position: 'relative',
-                      background: 'var(--color-bg-secondary)',
-                    }}>
-                      <input
-                        type="file"
-                        onChange={handleUploadDirectFile}
-                        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
-                        disabled={uploadingDirectFile}
-                      />
-                      {uploadingDirectFile ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <Loader2 className="spinner" />
-                          <span style={{ fontSize: 'var(--font-size-sm)' }}>Uploading attachment...</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
-                          <Paperclip size={16} />
-                          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>Click to attach evidence file (Max 10MB)</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Direct Attachments List */}
-                <div className="card">
-                  <h3 className="card-title" style={{ marginBottom: 'var(--space-3)' }}>Evidence Repository</h3>
-                  {blame.attachments?.length === 0 ? (
-                    <div className="empty-state" style={{ padding: 'var(--space-4)' }}>
-                      <FileText className="empty-state-icon" />
-                      <div className="empty-state-title">No attachments found</div>
-                    </div>
-                  ) : (
-                    <div className="table-wrapper">
-                      <table className="table">
-                        <thead>
-                          <tr>
-                            <th>File Name</th>
-                            <th>Size</th>
-                            <th>Uploader</th>
-                            <th>Uploaded</th>
-                            <th>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {blame.attachments?.map(att => (
-                            <tr key={att.id}>
-                              <td style={{ fontWeight: 500 }}>
-                                <div className="flex items-center gap-2">
-                                  <FileText size={16} style={{ color: 'var(--color-text-secondary)' }} />
-                                  <span className="truncate" style={{ maxWidth: '250px' }}>{att.originalName}</span>
-                                </div>
-                              </td>
-                              <td>{(att.sizeBytes / 1024 / 1024).toFixed(2)} MB</td>
-                              <td>{att.uploader?.name}</td>
-                              <td>{format(new Date(att.createdAt), 'MMM d, yyyy h:mm a')}</td>
-                              <td>
-                                <div className="flex items-center gap-1">
-                                  <a
-                                    href={getAttachmentDownloadUrl(att.id)}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="btn btn-ghost btn-sm"
-                                    style={{ color: 'var(--color-primary)' }}
-                                    title="Download File"
-                                  >
-                                    <Download size={14} />
-                                  </a>
-                                  {(canEdit || att.uploaderId === user?.id) && (
-                                    <button
-                                      onClick={() => handleDeleteDirectFile(att.id)}
-                                      className="btn btn-ghost btn-sm"
-                                      style={{ color: 'var(--color-blocked)' }}
-                                      title="Delete File"
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Right Side: Sidebar Meta Details */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          {/* Metadata Block */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             <h3 className="card-title">Registry Info</h3>
             
@@ -898,7 +789,6 @@ const BlameDetail = () => {
             </div>
           </div>
 
-          {/* Quantitative Impact Card */}
           {(blame.estimatedHoursLost !== null || blame.employeesAffected !== null || blame.businessImpactNotes) && (
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', borderLeft: '4px solid var(--color-primary)' }}>
               <h3 className="card-title">Impact Assessment</h3>
@@ -944,7 +834,6 @@ const BlameDetail = () => {
         </div>
       </div>
 
-      {/* DEPENDENCY LINK MODAL */}
       {showDepModal && (
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: '480px' }}>
@@ -970,7 +859,6 @@ const BlameDetail = () => {
                     required
                   >
                     <option value="">Select team being blocked</option>
-                    {/* Allow selecting from list of teams */}
                     {teams.map(t => (
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}

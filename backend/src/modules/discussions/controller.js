@@ -16,7 +16,8 @@ class DiscussionController {
       const message = await discussionService.createMessage(
         req.params.blameId,
         req.body.content,
-        req.user
+        req.user,
+        req.body.mentionedTeamIds
       );
       res.status(201).json({ success: true, data: message });
     } catch (error) { next(error); }

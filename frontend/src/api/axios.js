@@ -28,7 +28,7 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     // Avoid infinite loop if refresh request fails with 401
-    if (error.response?.status === 401 && originalRequest.url === '/auth/refresh') {
+    if (error.response?.status === 401 && originalRequest.url?.endsWith('/auth/refresh')) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
