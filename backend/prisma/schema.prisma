@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum TeamStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum BlamePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum BlameStatus {
+  OPEN
+  IN_DISCUSSION
+  BLOCKED
+  RESOLVED
+  CLOSED
+}
+
+enum NotificationType {
+  BLAME_CREATED
+  BLAME_ASSIGNED
+  NEW_MESSAGE
+  DEPENDENCY_ADDED
+  STATUS_CHANGED
+  MENTIONED
+}
+
+// ─── Models ──────────────────────────────────────────────
+
+model User {
+  id           String     @id @default(uuid())
+  name         String
+  email        String     @unique
+  employeeId   String     @unique @map("employee_id")
+  passwordHash String     @map("password_hash")
+  role         Role       @default(USER)
+  status       UserStatus @default(ACTIVE)
+  teamId       String?    @map("team_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  team              Team?          @relation(fields: [teamId], references: [id])
+  createdBlames     Blame[]        @relation("BlameCreator")
+  messages          BlameMessage[]
+  uploadedFiles     Attachment[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  refreshTokens     RefreshToken[]
+  createdDependencies Dependency[] @relation("DependencyCreator")
+
+  @@index([teamId])
+  @@index([status])
+  @@index([role])
+  @@map("users")
+}
+
+model Team {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  description String?
+  status      TeamStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  members           User[]
+  blamesCreatedBy   Blame[]      @relation("BlameCreatorTeam")
+  blamesAgainst     Blame[]      @relation("BlamedTeam")
+  blockedDeps       Dependency[] @relation("BlockedTeam")
+  blockingDeps      Dependency[] @relation("BlockingTeam")
+
+  @@index([status])
+  @@map("teams")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  blames Blame[]
+
+  @@index([isActive])
+  @@map("categories")
+}
+
+model Blame {
+  id                  String        @id @default(uuid())
+  title               String
+  description         String
+  priority            BlamePriority @default(MEDIUM)
+  status              BlameStatus   @default(OPEN)
+  impactDescription   String        @map("impact_description")
+  estimatedHoursLost  Float?        @map("estimated_hours_lost")
+  employeesAffected   Int?          @map("employees_affected")
+  businessImpactNotes String?       @map("business_impact_notes")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  // Foreign keys
+  creatorId     String @map("creator_id")
+  creatorTeamId String @map("creator_team_id")
+  blamedTeamId  String @map("blamed_team_id")
+  categoryId    String @map("category_id")
+
+  // Relations
+  creator     User           @relation("BlameCreator", fields: [creatorId], references: [id])
+  creatorTeam Team           @relation("BlameCreatorTeam", fields: [creatorTeamId], references: [id])
+  blamedTeam  Team           @relation("BlamedTeam", fields: [blamedTeamId], references: [id])
+  category    Category       @relation(fields: [categoryId], references: [id])
+  messages    BlameMessage[]
+  dependencies Dependency[]
+  attachments Attachment[]
+  notifications Notification[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([creatorTeamId])
+  @@index([blamedTeamId])
+  @@index([categoryId])
+  @@index([createdAt])
+  @@index([creatorId])
+  @@map("blames")
+}
+
+model BlameMessage {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Foreign keys
+  blameId  String @map("blame_id")
+  authorId String @map("author_id")
+
+  // Relations
+  blame       Blame        @relation(fields: [blameId], references: [id], onDelete: Cascade)
+  author      User         @relation(fields: [authorId], references: [id])
+  attachments Attachment[]
+
+  @@index([blameId, createdAt])
+  @@index([authorId])
+  @@map("blame_messages")
+}
+
+model Dependency {
+  id        String   @id @default(uuid())
+  reason    String
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Foreign keys
+  blameId        String @map("blame_id")
+  blockedTeamId  String @map("blocked_team_id")
+  blockedByTeamId String @map("blocked_by_team_id")
+  createdById    String @map("created_by_id")
+
+  // Relations
+  blame       Blame  @relation(fields: [blameId], references: [id], onDelete: Cascade)
+  blockedTeam Team   @relation("BlockedTeam", fields: [blockedTeamId], references: [id])
+  blockedByTeam Team @relation("BlockingTeam", fields: [blockedByTeamId], references: [id])
+  createdBy   User   @relation("DependencyCreator", fields: [createdById], references: [id])
+  attachments Attachment[]
+
+  @@index([blameId])
+  @@index([blockedTeamId])
+  @@index([blockedByTeamId])
+  @@map("dependencies")
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  fileName     String   @map("file_name")
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Foreign keys
+  uploaderId   String  @map("uploader_id")
+  blameId      String? @map("blame_id")
+  messageId    String? @map("message_id")
+  dependencyId String? @map("dependency_id")
+
+  // Relations
+  uploader   User          @relation(fields: [uploaderId], references: [id])
+  blame      Blame?        @relation(fields: [blameId], references: [id], onDelete: Cascade)
+  message    BlameMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  dependency Dependency?   @relation(fields: [dependencyId], references: [id], onDelete: Cascade)
+
+  @@index([blameId])
+  @@index([messageId])
+  @@index([uploaderId])
+  @@map("attachments")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  // Foreign keys
+  userId  String  @map("user_id")
+  blameId String? @map("blame_id")
+
+  // Relations
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blame Blame? @relation(fields: [blameId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Foreign keys
+  userId String @map("user_id")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Foreign keys
+  userId String @map("user_id")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("refresh_tokens")
+}
