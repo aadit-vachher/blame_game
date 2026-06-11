@@ -5,6 +5,9 @@ const controller = require('./controller');
 
 const router = Router();
 router.use(authenticate);
+
+router.get('/leaderboard', controller.leaderboard);
+
 router.use(authorize('ADMIN'));
 
 router.get('/overview', controller.overview);

@@ -86,8 +86,7 @@ export const NotificationProvider = ({ children }) => {
         if (response.success) {
           const newCount = response.data.count;
           if (newCount > unreadCount) {
-            // Unread count increased, fetch latest and trigger toast
-            toast.success('You have new notifications', { icon: '🔔' });
+            // Unread count increased, fetch latest
             fetchNotifications();
           } else {
             setUnreadCount(newCount);

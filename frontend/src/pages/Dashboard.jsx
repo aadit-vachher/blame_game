@@ -5,6 +5,7 @@ import { listTeams } from '../api/teams';
 import { AlertTriangle, PlusCircle, CheckCircle2, Flame, Loader2, ArrowRight } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
+import { getLeaderboard } from '../api/analytics';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ const Dashboard = () => {
     resolved: 0,
   });
   const [recentBlames, setRecentBlames] = useState([]);
+  const [leaderboard, setLeaderboard] = useState({ topBlamedTeams: [], topBlamers: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,12 +25,13 @@ const Dashboard = () => {
       try {
         setLoading(true);
         // Fetch stats in parallel by querying count with limit 1
-        const [totalRes, openRes, blockedRes, resolvedRes, recentRes] = await Promise.all([
+        const [totalRes, openRes, blockedRes, resolvedRes, recentRes, leaderboardRes] = await Promise.all([
           listBlames({ limit: 1 }),
           listBlames({ status: 'OPEN', limit: 1 }),
           listBlames({ status: 'BLOCKED', limit: 1 }),
           listBlames({ status: 'RESOLVED', limit: 1 }),
           listBlames({ limit: 5 }),
+          getLeaderboard().catch(() => ({ data: { topBlamedTeams: [], topBlamers: [] } }))
         ]);
 
         setStats({
@@ -39,6 +42,9 @@ const Dashboard = () => {
         });
 
         setRecentBlames(recentRes.data.blames || []);
+        if (leaderboardRes && leaderboardRes.data) {
+          setLeaderboard(leaderboardRes.data);
+        }
       } catch (err) {
         console.error('Error loading dashboard data:', err);
       } finally {
@@ -104,27 +110,80 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* Stats Grid */}
-      <div className="stat-grid">
-        <div className="stat-card">
-          <div className="stat-card-label">Total Blames</div>
-          <div className="stat-card-value">{stats.total}</div>
-          <div className="stat-card-sub">All logged occurrences</div>
+      {/* Top Section: Stats & Leaderboard */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '2fr 1fr',
+        gap: 'var(--space-6)',
+      }}>
+        {/* Stats Grid */}
+        <div className="stat-grid" style={{ alignContent: 'start' }}>
+          <div className="stat-card">
+            <div className="stat-card-label">Total Blames</div>
+            <div className="stat-card-value">{stats.total}</div>
+            <div className="stat-card-sub">All logged occurrences</div>
+          </div>
+          <div className="stat-card" style={{ borderLeft: '4px solid var(--color-open)' }}>
+            <div className="stat-card-label">Open</div>
+            <div className="stat-card-value" style={{ color: 'var(--color-open)' }}>{stats.open}</div>
+            <div className="stat-card-sub">Needs attention</div>
+          </div>
+          <div className="stat-card" style={{ borderLeft: '4px solid var(--color-blocked)' }}>
+            <div className="stat-card-label">Blocked</div>
+            <div className="stat-card-value" style={{ color: 'var(--color-blocked)' }}>{stats.blocked}</div>
+            <div className="stat-card-sub">Critical blocker active</div>
+          </div>
+          <div className="stat-card" style={{ borderLeft: '4px solid var(--color-resolved)' }}>
+            <div className="stat-card-label">Resolved</div>
+            <div className="stat-card-value" style={{ color: 'var(--color-resolved)' }}>{stats.resolved}</div>
+            <div className="stat-card-sub">Successfully resolved</div>
+          </div>
         </div>
-        <div className="stat-card" style={{ borderLeft: '4px solid var(--color-open)' }}>
-          <div className="stat-card-label">Open</div>
-          <div className="stat-card-value" style={{ color: 'var(--color-open)' }}>{stats.open}</div>
-          <div className="stat-card-sub">Needs attention</div>
-        </div>
-        <div className="stat-card" style={{ borderLeft: '4px solid var(--color-blocked)' }}>
-          <div className="stat-card-label">Blocked</div>
-          <div className="stat-card-value" style={{ color: 'var(--color-blocked)' }}>{stats.blocked}</div>
-          <div className="stat-card-sub">Critical blocker active</div>
-        </div>
-        <div className="stat-card" style={{ borderLeft: '4px solid var(--color-resolved)' }}>
-          <div className="stat-card-label">Resolved</div>
-          <div className="stat-card-value" style={{ color: 'var(--color-resolved)' }}>{stats.resolved}</div>
-          <div className="stat-card-sub">Successfully resolved</div>
+
+        {/* Leaderboard */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <Flame size={18} color="var(--color-primary)" /> Leaderboard
+          </h3>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <div>
+              <h4 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text)', marginBottom: 'var(--space-2)' }}>
+                Most Blames Raised (Users)
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                {leaderboard.topBlamers.length > 0 ? leaderboard.topBlamers.map((b, i) => (
+                  <div key={b.user?.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--font-size-sm)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontWeight: 500 }}>{b.user?.name || 'Unknown User'}</span>
+                      <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>{b.user?.team?.name || 'No Team'}</span>
+                    </div>
+                    <span className="badge badge-high">{b.blamesRaised}</span>
+                  </div>
+                )) : (
+                  <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>No data available.</div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.05)' }}></div>
+
+            <div>
+              <h4 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text)', marginBottom: 'var(--space-2)' }}>
+                Most Blamed Teams
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                {leaderboard.topBlamedTeams.length > 0 ? leaderboard.topBlamedTeams.map((t, i) => (
+                  <div key={t.team?.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--font-size-sm)' }}>
+                    <span style={{ fontWeight: 500 }}>{t.team?.name || 'Unknown Team'}</span>
+                    <span className="badge badge-critical">{t.blamesAgainst}</span>
+                  </div>
+                )) : (
+                  <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>No data available.</div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -187,7 +246,7 @@ const Dashboard = () => {
         </div>
 
         {/* Accountability Guidelines */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', alignSelf: 'start' }}>
           <h3 className="card-title">Product Philosophy</h3>
           <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
             The purpose of <strong>Blame Game</strong> is to provide structured visibility into operational friction.

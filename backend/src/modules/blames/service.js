@@ -255,6 +255,28 @@ class BlameService {
 
     return updated;
   }
+
+  async delete(id, user, ipAddress) {
+    const blame = await prisma.blame.findUnique({ where: { id } });
+    if (!blame) throw new NotFoundError('Blame');
+
+    if (user.role !== 'ADMIN') {
+      throw new ForbiddenError('Only an admin can delete a blame');
+    }
+
+    await prisma.blame.delete({ where: { id } });
+
+    await createAuditLog({
+      action: 'BLAME_DELETED',
+      userId: user.id,
+      entityType: 'Blame',
+      entityId: id,
+      oldValue: { title: blame.title, priority: blame.priority },
+      ipAddress,
+    });
+
+    return true;
+  }
 }
 
 module.exports = new BlameService();

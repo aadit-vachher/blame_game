@@ -1,6 +1,46 @@
 const prisma = require('../../config/database');
 
 class AnalyticsService {
+  async leaderboard() {
+    const teams = await prisma.team.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, name: true },
+    });
+    
+    const teamStats = await Promise.all(
+      teams.map(async (team) => {
+        const blamesAgainst = await prisma.blame.count({ where: { blamedTeamId: team.id } });
+        return { team, blamesAgainst };
+      })
+    );
+    const topBlamedTeams = teamStats.sort((a, b) => b.blamesAgainst - a.blamesAgainst).slice(0, 5);
+
+    const blamerGroups = await prisma.blame.groupBy({
+      by: ['creatorId'],
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 5,
+    });
+
+    const topBlamers = await Promise.all(
+      blamerGroups.map(async (group) => {
+        const user = await prisma.user.findUnique({
+          where: { id: group.creatorId },
+          select: { id: true, name: true, team: { select: { name: true } } },
+        });
+        return {
+          user,
+          blamesRaised: group._count.id,
+        };
+      })
+    );
+
+    return {
+      topBlamedTeams,
+      topBlamers,
+    };
+  }
+
   async overview() {
     const [total, open, critical, resolved, closed, blocked, inDiscussion] = await Promise.all([
       prisma.blame.count(),

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getBlameById, changeBlameStatus, updateBlame } from '../api/blames';
+import { getBlameById, changeBlameStatus, updateBlame, deleteBlame } from '../api/blames';
 import { listTeams } from '../api/teams';
 import { listCategories } from '../api/categories';
 import { listDiscussionMessages, createDiscussionMessage } from '../api/discussions';
@@ -150,6 +150,20 @@ const BlameDetail = () => {
       toast.error(err.response?.data?.message || 'Failed to update blame');
     } finally {
       setUpdatingBlame(false);
+    }
+  };
+
+  const handleDeleteBlame = async () => {
+    if (!window.confirm('Are you sure you want to delete this blame? This action cannot be undone.')) return;
+    try {
+      const response = await deleteBlame(id);
+      if (response.success) {
+        toast.success('Blame deleted successfully');
+        navigate('/blames');
+      }
+    } catch (err) {
+      console.error('Failed to delete blame:', err);
+      toast.error(err.response?.data?.message || 'Failed to delete blame');
     }
   };
 
@@ -380,6 +394,12 @@ const BlameDetail = () => {
 
           {canEdit && !editMode && (
             <button onClick={() => setEditMode(true)} className="btn btn-secondary btn-sm">Edit Details</button>
+          )}
+
+          {isAdmin && (
+            <button onClick={handleDeleteBlame} className="btn btn-danger btn-sm" style={{ marginLeft: 'var(--space-2)' }}>
+              <Trash2 size={16} /> Delete
+            </button>
           )}
         </div>
       </div>

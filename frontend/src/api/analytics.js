@@ -24,3 +24,8 @@ export const getTrendsAnalytics = async (params) => {
   const response = await api.get('/analytics/trends', { params });
   return response.data;
 };
+
+export const getLeaderboard = async () => {
+  const response = await api.get('/analytics/leaderboard');
+  return response.data;
+};

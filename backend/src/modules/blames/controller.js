@@ -50,6 +50,13 @@ class BlameController {
       res.json({ success: true, data: blame });
     } catch (error) { next(error); }
   }
+
+  async delete(req, res, next) {
+    try {
+      await blameService.delete(req.params.id, req.user, req.ip);
+      res.json({ success: true, message: 'Blame deleted successfully' });
+    } catch (error) { next(error); }
+  }
 }
 
 module.exports = new BlameController();

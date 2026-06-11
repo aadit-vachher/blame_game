@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { 
   LayoutDashboard, 
   AlertTriangle, 
@@ -16,6 +17,7 @@ import {
 
 const Sidebar = () => {
   const { user, isAdmin } = useAuth();
+  const { unreadCount } = useNotifications();
 
   const activeStyle = {
     background: 'var(--color-sidebar-active)',
@@ -112,7 +114,19 @@ const Sidebar = () => {
 
         <NavLink to="/notifications" style={linkStyle}>
           <Bell size={18} />
-          Notifications
+          <span style={{ flex: 1 }}>Notifications</span>
+          {unreadCount > 0 && (
+            <span style={{
+              background: 'var(--color-primary, #e11d48)',
+              color: 'white',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              padding: '2px 6px',
+              borderRadius: '10px',
+            }}>
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </NavLink>
 
         {isAdmin && (

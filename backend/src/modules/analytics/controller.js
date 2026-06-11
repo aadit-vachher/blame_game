@@ -8,6 +8,13 @@ class AnalyticsController {
     } catch (error) { next(error); }
   }
 
+  async leaderboard(req, res, next) {
+    try {
+      const data = await analyticsService.leaderboard();
+      res.json({ success: true, data });
+    } catch (error) { next(error); }
+  }
+
   async teams(req, res, next) {
     try {
       const data = await analyticsService.teams();

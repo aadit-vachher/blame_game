@@ -24,3 +24,8 @@ export const changeBlameStatus = async (id, status) => {
   const response = await api.patch(`/blames/${id}/status`, { status });
   return response.data;
 };
+
+export const deleteBlame = async (id) => {
+  const response = await api.delete(`/blames/${id}`);
+  return response.data;
+};

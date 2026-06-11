@@ -2,6 +2,7 @@ const { Router } = require('express');
 const { body, param, query } = require('express-validator');
 const { validate } = require('../../middleware/validate');
 const { authenticate } = require('../../middleware/authenticate');
+const { authorize } = require('../../middleware/authorize');
 const controller = require('./controller');
 
 const router = Router();
@@ -39,5 +40,7 @@ router.patch(
 );
 
 router.patch('/:id', [param('id').isUUID()], validate, controller.update);
+
+router.delete('/:id', [param('id').isUUID()], validate, authorize('ADMIN'), controller.delete);
 
 module.exports = router;
