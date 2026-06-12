@@ -6,9 +6,12 @@ const { authorize } = require('../../middleware/authorize');
 const controller = require('./controller');
 
 const router = Router();
-router.use(authenticate);
 
+// Public routes
 router.get('/', controller.list);
+
+// Protected routes
+router.use(authenticate);
 router.get('/:id', [param('id').isUUID()], validate, controller.getById);
 router.get('/:id/members', [param('id').isUUID()], validate, controller.getMembers);
 

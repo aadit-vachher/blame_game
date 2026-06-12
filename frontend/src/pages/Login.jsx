@@ -1,19 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
-import { Flame, Lock, Mail, AlertCircle } from 'lucide-react';
+import { Flame, Lock, Mail, AlertCircle, Users } from 'lucide-react';
+import { listTeams } from '../api/teams';
 
 const Login = () => {
-  const { loginUser } = useAuth();
+  const { loginUser, registerUser } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [teamId, setTeamId] = useState('');
+  const [teams, setTeams] = useState([]);
+
+  useEffect(() => {
+    if (isRegistering && teams.length === 0) {
+      const fetchTeams = async () => {
+        try {
+          const res = await listTeams();
+          setTeams(res.data || []);
+        } catch (err) {
+          console.error("Failed to fetch teams");
+        }
+      };
+      fetchTeams();
+    }
+  }, [isRegistering, teams.length]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
+    if (!email || !password || (isRegistering && !teamId)) {
       setError('Please fill in all fields');
       return;
     }
@@ -22,11 +40,14 @@ const Login = () => {
     setError('');
     
     try {
-      const result = await loginUser(email, password);
+      const result = isRegistering
+        ? await registerUser(email, password, teamId)
+        : await loginUser(email, password);
+
       if (result.success) {
         navigate('/');
       } else {
-        setError(result.message || 'Login failed');
+        setError(result.message || (isRegistering ? 'Registration failed' : 'Login failed'));
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -152,6 +173,38 @@ const Login = () => {
             </div>
           </div>
 
+          {isRegistering && (
+            <div className="form-group">
+              <label className="form-label" style={{ color: 'rgba(255,255,255,0.7)', fontSize: 'var(--font-size-xs)' }}>
+                Team
+              </label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: '12px', top: '10px', color: 'rgba(255,255,255,0.3)' }}>
+                  <Users size={16} />
+                </span>
+                <select
+                  value={teamId}
+                  onChange={(e) => setTeamId(e.target.value)}
+                  style={{
+                    paddingLeft: '38px',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'white',
+                    width: '100%',
+                    height: '40px',
+                    borderRadius: 'var(--radius-md)'
+                  }}
+                  required={isRegistering}
+                >
+                  <option value="" disabled style={{ color: 'black' }}>Select your team</option>
+                  {teams.map(team => (
+                    <option key={team.id} value={team.id} style={{ color: 'black' }}>{team.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           <button
             type="submit"
             className="btn btn-primary"
@@ -166,9 +219,28 @@ const Login = () => {
             {loading ? (
               <span className="spinner" style={{ borderColor: 'white', borderTopColor: 'transparent' }} />
             ) : (
-              'Sign In'
+              isRegistering ? 'Sign Up' : 'Sign In'
             )}
           </button>
+
+          <div style={{ textAlign: 'center', marginTop: 'var(--space-2)' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegistering(!isRegistering);
+                setError('');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-primary-light)',
+                cursor: 'pointer',
+                fontSize: 'var(--font-size-xs)',
+              }}
+            >
+              {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+            </button>
+          </div>
         </form>
       </div>
     </div>

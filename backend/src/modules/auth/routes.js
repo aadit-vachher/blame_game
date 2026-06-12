@@ -26,6 +26,18 @@ router.post(
 );
 
 router.post(
+  '/register',
+  authLimiter,
+  [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('teamId').optional().isUUID().withMessage('Invalid team ID format'),
+  ],
+  validate,
+  controller.register
+);
+
+router.post(
   '/refresh',
   [body('refreshToken').notEmpty().withMessage('Refresh token is required')],
   validate,

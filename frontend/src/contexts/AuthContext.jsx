@@ -66,6 +66,28 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const registerUser = async (email, password, teamId) => {
+    setLoading(true);
+    try {
+      const response = await authApi.register(email, password, teamId);
+      if (response.success && response.data) {
+        const { accessToken, refreshToken, user: userData } = response.data;
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        return { success: true };
+      }
+      return { success: false, message: response.message || 'Registration failed' };
+    } catch (err) {
+      console.error('Registration error:', err);
+      const message = err.response?.data?.message || 'Registration failed';
+      return { success: false, message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logoutUser = async () => {
     setLoading(true);
     const refreshToken = localStorage.getItem('refreshToken');
@@ -91,6 +113,7 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     loginUser,
+    registerUser,
     logoutUser,
     updateUserProfileState,
     isAdmin: user?.role === 'ADMIN',

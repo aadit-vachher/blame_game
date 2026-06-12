@@ -63,6 +63,54 @@ class AuthService {
     return { user: userData, accessToken, refreshToken };
   }
 
+  async register(email, password, teamId, ipAddress) {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw new ValidationError('Email is already registered');
+    }
+
+    const { randomUUID } = require('crypto');
+    const passwordHash = await bcrypt.hash(password, 12);
+    const name = email.split('@')[0];
+    const employeeId = randomUUID();
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name,
+        employeeId,
+        teamId,
+      },
+      include: { team: { select: { id: true, name: true } } },
+    });
+
+    const accessToken = this.generateAccessToken(user.id);
+    const refreshToken = this.generateRefreshToken(user.id);
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: user.id,
+        expiresAt,
+      },
+    });
+
+    await createAuditLog({
+      action: 'USER_REGISTER',
+      userId: user.id,
+      entityType: 'User',
+      entityId: user.id,
+      ipAddress,
+    });
+
+    const { passwordHash: _, ...userData } = user;
+    return { user: userData, accessToken, refreshToken };
+  }
+
   async refresh(refreshToken) {
     if (!refreshToken) {
       throw new UnauthorizedError('Refresh token required');

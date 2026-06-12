@@ -12,6 +12,17 @@ class AuthController {
     }
   }
 
+  async register(req, res, next) {
+    try {
+      const { email, password, teamId } = req.body;
+      const ipAddress = req.ip;
+      const result = await authService.register(email, password, teamId, ipAddress);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async refresh(req, res, next) {
     try {
       const { refreshToken } = req.body;
