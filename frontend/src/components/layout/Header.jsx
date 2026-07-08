@@ -28,9 +28,8 @@ const Header = ({ title, toggleMobileSidebar }) => {
       <div className="flex items-center gap-4">
         {/* Mobile menu trigger */}
         <button
-          className="btn btn-ghost btn-sm md-hidden"
+          className="btn btn-ghost btn-sm mobile-menu-btn"
           onClick={toggleMobileSidebar}
-          style={{ display: 'none' }} /* Handle in mobile styling if needed */
         >
           <Menu size={20} />
         </button>

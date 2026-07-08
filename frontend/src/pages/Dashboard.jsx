@@ -111,11 +111,7 @@ const Dashboard = () => {
       </div>
 
       {/* Top Section: Stats & Leaderboard */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '2fr 1fr',
-        gap: 'var(--space-6)',
-      }}>
+      <div className="grid-2-1">
         {/* Stats Grid */}
         <div className="stat-grid" style={{ alignContent: 'start' }}>
           <div className="stat-card">
@@ -188,11 +184,7 @@ const Dashboard = () => {
       </div>
 
       {/* Main Grid: Recent Blames & Blame Guide */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '2fr 1fr',
-        gap: 'var(--space-6)',
-      }}>
+      <div className="grid-2-1">
         {/* Recent Blames */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div className="flex items-center justify-between">

@@ -404,7 +404,7 @@ const BlameDetail = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }}>
+      <div className="grid-2-1">
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           {editMode ? (

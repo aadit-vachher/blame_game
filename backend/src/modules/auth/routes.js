@@ -10,7 +10,7 @@ const router = Router();
 // Rate limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: 100,
   message: { success: false, code: 'RATE_LIMIT', message: 'Too many attempts. Try again later.' },
 });
 

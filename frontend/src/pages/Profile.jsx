@@ -47,7 +47,7 @@ const Profile = () => {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--space-6)' }}>
+    <div className="grid-1-2">
       {/* Profile Info Sidebar */}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', height: 'fit-content' }}>
         <h3 className="card-title">Profile Info</h3>

@@ -123,6 +123,8 @@ model Blame {
   estimatedHoursLost  Float?        @map("estimated_hours_lost")
   employeesAffected   Int?          @map("employees_affected")
   businessImpactNotes String?       @map("business_impact_notes")
+  creatorName         String        @default("") @map("creator_name")
+  blamedTeamName      String        @default("") @map("blamed_team_name")
   createdAt           DateTime      @default(now()) @map("created_at")
   updatedAt           DateTime      @updatedAt @map("updated_at")
 

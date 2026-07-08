@@ -159,7 +159,7 @@ const Analytics = () => {
 
       {/* TEAMS TAB */}
       {activeTab === 'teams' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)' }}>
+        <div className="grid-1-1">
           {/* Most Blamed (Bottlenecks) */}
           <div className="card">
             <h3 className="card-title" style={{ marginBottom: 'var(--space-4)' }}>Top Blamed Teams (Bottlenecks)</h3>
@@ -204,7 +204,7 @@ const Analytics = () => {
 
       {/* CATEGORIES TAB */}
       {activeTab === 'categories' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 'var(--space-6)' }}>
+        <div className="grid-1-5-1">
           {/* Category Distribution Pie */}
           <div className="card">
             <h3 className="card-title" style={{ marginBottom: 'var(--space-4)' }}>Blame Categories Distribution</h3>
@@ -270,7 +270,7 @@ const Analytics = () => {
       {activeTab === 'productivity' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           {/* Productivity Stats */}
-          <div className="stat-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="stat-grid">
             <div className="stat-card" style={{ borderLeft: '4px solid var(--color-blocked)' }}>
               <div className="stat-card-label">Aggregated Hours Lost</div>
               <div className="stat-card-value" style={{ color: 'var(--color-blocked)' }}>

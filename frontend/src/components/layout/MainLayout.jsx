@@ -23,8 +23,13 @@ const MainLayout = ({ title }) => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-bg)', display: 'flex' }}>
-      {/* Sidebar (Desktop) */}
-      <Sidebar />
+      {/* Sidebar */}
+      <Sidebar isOpen={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />
+
+      {/* Mobile Sidebar Backdrop Overlay */}
+      {mobileSidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setMobileSidebarOpen(false)} />
+      )}
 
       {/* Main content wrapper */}
       <div style={{

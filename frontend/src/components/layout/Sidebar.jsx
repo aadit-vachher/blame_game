@@ -15,7 +15,7 @@ import {
   Flame
 } from 'lucide-react';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }) => {
   const { user, isAdmin } = useAuth();
   const { unreadCount } = useNotifications();
 
@@ -38,7 +38,7 @@ const Sidebar = () => {
   });
 
   return (
-    <aside className="sidebar" style={{
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`} style={{
       width: 'var(--sidebar-width)',
       background: 'var(--color-sidebar)',
       color: 'white',
@@ -97,22 +97,22 @@ const Sidebar = () => {
           Workspace
         </span>
 
-        <NavLink to="/" style={linkStyle} end>
+        <NavLink to="/" style={linkStyle} onClick={onClose} end>
           <LayoutDashboard size={18} />
           Dashboard
         </NavLink>
 
-        <NavLink to="/blames" style={linkStyle} end>
+        <NavLink to="/blames" style={linkStyle} onClick={onClose} end>
           <AlertTriangle size={18} />
           Blames
         </NavLink>
 
-        <NavLink to="/blames/create" style={linkStyle}>
+        <NavLink to="/blames/create" style={linkStyle} onClick={onClose}>
           <PlusCircle size={18} />
           Raise Blame
         </NavLink>
 
-        <NavLink to="/notifications" style={linkStyle}>
+        <NavLink to="/notifications" style={linkStyle} onClick={onClose}>
           <Bell size={18} />
           <span style={{ flex: 1 }}>Notifications</span>
           {unreadCount > 0 && (
@@ -141,7 +141,7 @@ const Sidebar = () => {
             }}>
               Insights
             </span>
-            <NavLink to="/analytics" style={linkStyle}>
+            <NavLink to="/analytics" style={linkStyle} onClick={onClose}>
               <BarChart3 size={18} />
               Analytics
             </NavLink>
@@ -161,22 +161,22 @@ const Sidebar = () => {
               Administration
             </span>
 
-            <NavLink to="/admin/users" style={linkStyle}>
+            <NavLink to="/admin/users" style={linkStyle} onClick={onClose}>
               <Users size={18} />
               User Settings
             </NavLink>
 
-            <NavLink to="/admin/teams" style={linkStyle}>
+            <NavLink to="/admin/teams" style={linkStyle} onClick={onClose}>
               <FolderTree size={18} />
               Team Directory
             </NavLink>
 
-            <NavLink to="/admin/categories" style={linkStyle}>
+            <NavLink to="/admin/categories" style={linkStyle} onClick={onClose}>
               <Settings size={18} />
               Categories
             </NavLink>
 
-            <NavLink to="/admin/audit-logs" style={linkStyle}>
+            <NavLink to="/admin/audit-logs" style={linkStyle} onClick={onClose}>
               <ShieldAlert size={18} />
               Audit Logs
             </NavLink>

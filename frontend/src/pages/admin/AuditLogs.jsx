@@ -28,7 +28,7 @@ const AuditLogs = () => {
         page,
         limit,
       };
-
+      
       if (action) params.action = action;
       if (entityType) params.entityType = entityType;
       if (dateFrom) params.dateFrom = dateFrom;
@@ -218,7 +218,7 @@ const AuditLogs = () => {
                     {expandedLogId === log.id && (
                       <tr>
                         <td colSpan={7} style={{ background: 'var(--color-bg-tertiary)', padding: 'var(--space-4) var(--space-8)' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)' }}>
+                          <div className="grid-1-1">
                             <div>
                               <h4 style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '4px', textTransform: 'uppercase' }}>
                                 Pre-State Value (Old)

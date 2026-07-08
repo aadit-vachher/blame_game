@@ -127,8 +127,10 @@ class BlameService {
         employeesAffected: data.employeesAffected ? parseInt(data.employeesAffected) : null,
         businessImpactNotes: data.businessImpactNotes || null,
         creatorId: user.id,
+        creatorName: user.name,
         creatorTeamId: user.teamId,
         blamedTeamId: data.blamedTeamId,
+        blamedTeamName: blamedTeam.name,
         categoryId: data.categoryId,
       },
       include: {
@@ -144,7 +146,13 @@ class BlameService {
       userId: user.id,
       entityType: 'Blame',
       entityId: blame.id,
-      newValue: { title: blame.title, priority: blame.priority, blamedTeamId: blame.blamedTeamId },
+      newValue: {
+        title: blame.title,
+        priority: blame.priority,
+        creatorName: user.name,
+        blamedTeamName: blamedTeam.name,
+        blamedTeamId: blame.blamedTeamId,
+      },
       ipAddress,
     });
 
