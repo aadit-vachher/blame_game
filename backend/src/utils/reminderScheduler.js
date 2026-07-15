@@ -25,9 +25,19 @@ async function sendUnresolvedBlameReminders() {
       }
     });
 
-    console.log(`[REMINDER] Found ${unresolvedBlames.length} unresolved blames older than 2 days.`);
+    console.log(`[REMINDER] Found ${unresolvedBlames.length} unresolved blames older than 2 days in database.`);
 
     for (const blame of unresolvedBlames) {
+      // Calculate age of blame in days
+      const ageInMs = Date.now() - new Date(blame.createdAt).getTime();
+      const ageInDays = Math.floor(ageInMs / (24 * 60 * 60 * 1000));
+
+      // Only send reminders on Day 2, Day 4, Day 6, Day 8, etc. (even ages >= 2)
+      if (ageInDays < 2 || ageInDays % 2 !== 0) {
+        console.log(`[REMINDER] Skipping blame "${blame.title}" (ID: ${blame.id}). Age is ${ageInDays} days (not an even day >= 2).`);
+        continue;
+      }
+
       // Find active blamed team members
       const blamedTeamMembers = await prisma.user.findMany({
         where: {
@@ -47,15 +57,16 @@ async function sendUnresolvedBlameReminders() {
       const uniqueRecipients = [...new Set(recipientEmails.filter(Boolean))];
 
       if (uniqueRecipients.length > 0) {
-        console.log(`[REMINDER] Sending reminder for blame "${blame.title}" (ID: ${blame.id}) to: ${uniqueRecipients.join(', ')}`);
+        console.log(`[REMINDER] Sending reminder (Day ${ageInDays}) for blame "${blame.title}" (ID: ${blame.id}) to: ${uniqueRecipients.join(', ')}`);
         
-        const subject = `[Blame Game Reminder] Unresolved Blame: ${blame.title}`;
-        const text = `Reminder: The blame "${blame.title}" raised by ${blame.creatorName} (${blame.creatorTeam.name}) against ${blame.blamedTeamName} has been open/unresolved for more than 2 days.\n\nStatus: ${blame.status}\nCreated At: ${new Date(blame.createdAt).toLocaleString()}\n\nPlease take appropriate actions to discuss, resolve, or close this blame.`;
+        const reminderNumber = ageInDays / 2;
+        const subject = `[Blame Game Reminder #${reminderNumber}] Unresolved Blame: ${blame.title} (Open for ${ageInDays} days)`;
+        const text = `Reminder #${reminderNumber}: The blame "${blame.title}" raised by ${blame.creatorName} (${blame.creatorTeam.name}) against ${blame.blamedTeamName} has been open/unresolved for ${ageInDays} days.\n\nStatus: ${blame.status}\nCreated At: ${new Date(blame.createdAt).toLocaleString()}\n\nPlease take appropriate actions to discuss, resolve, or close this blame.`;
         
         const html = `<div style="font-family: sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e2e5f0; border-radius: 8px; background-color: #f8f9fc;">
-          <h2 style="color: #d9534f; margin-top: 0; border-bottom: 2px solid #d9534f; padding-bottom: 10px;">Blame Game Reminder</h2>
+          <h2 style="color: #d9534f; margin-top: 0; border-bottom: 2px solid #d9534f; padding-bottom: 10px;">Blame Game Reminder #${reminderNumber}</h2>
           <p style="font-size: 15px; line-height: 1.6; color: #1a1d2e;">
-            This is an automated reminder that the following blame has remained unresolved/open for more than 2 days:
+            This is an automated reminder that the following blame has remained unresolved/open for **${ageInDays} days** (sent every 2 days):
           </p>
           <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 15px;">
             <tr>
