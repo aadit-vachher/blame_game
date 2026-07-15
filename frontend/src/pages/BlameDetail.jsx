@@ -173,8 +173,6 @@ const BlameDetail = () => {
 
     const cursorPosition = e.target.selectionStart;
     const textBeforeCursor = val.slice(0, cursorPosition);
-    
-    // Check if the last word starts with @
     const words = textBeforeCursor.split(/\s/);
     const lastWord = words[words.length - 1];
 
@@ -190,23 +188,19 @@ const BlameDetail = () => {
   const handleMentionSelect = (team) => {
     const textBeforeMention = commentText.slice(0, mentionCursorIndex);
     const textAfterCursor = commentText.slice(textareaRef.current.selectionStart);
-    
-    // Construct new text with @TeamName
+  
     const newText = `${textBeforeMention}@${team.name} ${textAfterCursor}`;
     setCommentText(newText);
-    
-    // Add to mentionedTeams list if not already there
+  
     if (!mentionedTeams.find(t => t.id === team.id)) {
       setMentionedTeams([...mentionedTeams, team]);
     }
     
     setShowMentionDropdown(false);
-    
-    // Refocus textarea and put cursor after the mention
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
-        const newCursorPos = mentionCursorIndex + team.name.length + 2; // +1 for @ and +1 for space
+        const newCursorPos = mentionCursorIndex + team.name.length + 2;
         textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
       }
     }, 0);

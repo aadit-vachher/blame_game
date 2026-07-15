@@ -75,10 +75,14 @@ app.use((req, res) => {
 
 app.use(errorHandler);
 
+const { startReminderScheduler } = require('./utils/reminderScheduler');
 
 app.listen(PORT, () => {
   console.log(`\n🎯 Blame Game API running on http://localhost:${PORT}`);
   console.log(`📋 Health check: http://localhost:${PORT}/api/health\n`);
+  
+  // Start the background reminders scheduler for unresolved blames
+  startReminderScheduler();
 });
 
 module.exports = app;
