@@ -49,8 +49,7 @@ async function sendUnresolvedBlameReminders() {
 
       const recipientEmails = [
         ...blamedTeamMembers.map(m => m.email),
-        blame.creator.email,
-        'foundersteam@cartrends.net'
+        blame.creator.email
       ];
 
       // Deduplicate and filter out invalid/empty emails
